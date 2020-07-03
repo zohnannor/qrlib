@@ -1,7 +1,7 @@
 # Vk Bot Library
 
 ### Example Longpoll bot:
-```
+```python
 from qrlib import Bot
 
 token = "12345asdfgh"
