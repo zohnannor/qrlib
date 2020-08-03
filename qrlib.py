@@ -2,7 +2,17 @@ import re
 import asyncio
 
 from aiohttp import ClientSession
-from typing import Union, Callable, Dict
+from typing import (
+    Any,
+    Awaitable,
+    Pattern,
+    Tuple,
+    Union,
+    Callable,
+    Dict,
+)
+
+Callback = Callable[..., Awaitable[Any]]
 
 
 class Bot:
@@ -10,34 +20,35 @@ class Bot:
         self.token = token
         self.group_id = group_id
         self.prefix = prefix
-        self.handlers: Dict[Union[str, re.Pattern], Callable] = {}
+        self.handlers: Dict[Pattern[str], Callback] = {}
         self.URL = "https://api.vk.com/method/"
         self.v = "5.110"
         self.base_params = {"group_id": group_id, "access_token": token, "v": self.v}
 
     def message_handler(
-        self, text: Union[str, re.Pattern] = re.compile(".*", re.IGNORECASE)
-    ) -> Callable:
+        self, *, text: Union[str, Pattern[str]] = re.compile(".*", re.IGNORECASE)
+    ) -> Callable[..., Callback]:
         if isinstance(text, str):
-            text = re.escape(self.prefix + text) + "$"
-            text = re.compile(
-                re.sub(r"<(\w+)>", r"(?P<\g<1>>\\w+)", text), re.IGNORECASE
+            text_escaped: str = re.escape(self.prefix + text) + "$"
+            text_pattern: Pattern[str] = re.compile(
+                re.sub(r"<(\w+)>", r"(?P<\g<1>>\\w+)", text_escaped), re.IGNORECASE
             )
-        else:
-            if self.prefix:
-                text = re.compile(self.prefix + text.pattern, re.IGNORECASE)
+        elif self.prefix:
+            text_pattern = re.compile(self.prefix + text.pattern, re.IGNORECASE)
 
-        def wrapper(f):
-            self.handlers.update({text: f})
+        def wrapper(handler: Callback) -> Callback:
+            self.handlers.update({text_pattern: handler})
 
-            def inner(*a, **kw):
-                return f(*a, **kw)
+            async def inner(*a: Tuple[Any], **kw: Dict[str, Any]) -> Any:
+                return await handler(*a, **kw)
 
             return inner
 
         return wrapper
 
-    async def __get(self, session: ClientSession, url: str, params: dict = {}) -> dict:
+    async def __get(
+        self, session: ClientSession, url: str, params: Dict[str, Any] = {}
+    ) -> Dict[str, Any]:
         params.update(self.base_params)
         async with session.get(url, params=params) as response:
             assert response.status == 200
@@ -49,7 +60,7 @@ class Bot:
         ]
         return (r["key"], r["server"], r["ts"])
 
-    async def __main(self):
+    async def __main(self) -> None:
         async with ClientSession() as session:
             key, server, ts = await self.__getLongPollServer(session)
             while True:
@@ -60,9 +71,11 @@ class Bot:
                 )
                 ts = r["ts"]
                 if r["updates"]:
-                    text = r["updates"][0]["object"]["message"]["text"]
+                    print(r["updates"])
+                    text: str = r["updates"][0]["object"]["message"]["text"]
                     peer_id = r["updates"][0]["object"]["message"]["peer_id"]
                     for filter_, handler in self.handlers.items():
+                        # match: Match[str]
                         if (match := filter_.match(text)) :
                             await self.__get(
                                 session,

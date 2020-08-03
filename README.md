@@ -14,7 +14,7 @@ async def hello():
 
 
 @bot.message_handler(text = 'greet <name>')
-async def greet(name):
+async def greet(name: str):
     return f'Hello, {name}!'
 
 

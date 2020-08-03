@@ -1,1 +1,5 @@
 test.py
+__pycache__
+.mypy_cache
+typings
+py.py
