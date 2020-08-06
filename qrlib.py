@@ -1,5 +1,6 @@
 import re
 import asyncio
+import ssl
 
 from aiohttp import ClientSession
 from typing import (
@@ -50,7 +51,7 @@ class Bot:
         self, session: ClientSession, url: str, params: Dict[str, Any] = {}
     ) -> Dict[str, Any]:
         params.update(self.base_params)
-        async with session.get(url, params=params) as response:
+        async with session.get(url, params=params, ssl=ssl.SSLContext()) as response:
             assert response.status == 200
             return await response.json()
 
